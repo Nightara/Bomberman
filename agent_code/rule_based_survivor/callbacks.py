@@ -83,8 +83,8 @@ def next_move(self, game_state):
             if xb < x:
                 action_ideas.append(("RIGHT", 1.0))
             # If possible, turn a corner
-            action_ideas.append(("UP", 1.0))
-            action_ideas.append(("DOWN", 1.0))
+            action_ideas.append(("UP", 2.0))
+            action_ideas.append(("DOWN", 2.0))
 
     # Normalize confidence, then sort actions
     if len(action_ideas) > 0:
