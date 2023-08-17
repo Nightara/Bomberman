@@ -57,8 +57,7 @@ def next_move(self, game_state):
 
     # Collect basic action proposals in a queue
     # Later on, the last added action that is also valid will be chosen
-    action_ideas = [("UP", 0.1), ("DOWN", 0.1), ("LEFT", 0.1), ("RIGHT", 0.1)]
-    shuffle(action_ideas)
+    action_ideas = []
 
     # Add proposal to run away from any nearby bomb about to blow
     for (xb, yb), t in bombs:
@@ -88,9 +87,10 @@ def next_move(self, game_state):
             action_ideas.append(("DOWN", 1.0))
 
     # Normalize confidence, then sort actions
-    total_conf = sum(conf for (move, conf) in action_ideas)
-    action_ideas = [(move, conf / total_conf) for (move, conf) in action_ideas]
-    action_ideas.sort(key=lambda m: m[1])
+    if len(action_ideas) > 0:
+        total_conf = sum(conf for (move, conf) in action_ideas)
+        action_ideas = [(move, conf / total_conf) for (move, conf) in action_ideas]
+        action_ideas.sort(key=lambda m: m[1])
 
     # Pick the highest rated action added to the proposals list that is also valid
     while len(action_ideas) > 0:
