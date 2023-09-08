@@ -1,222 +1,202 @@
-import torch
-import torch.nn as nn 
-import torch.optim as optim
-import random
-from collections import namedtuple, deque
-import time
+import os
 import numpy as np
-import torch.nn.functional as F 
-from environment import BombermanEnvironment, WIDTH, HEIGHT
-from callback import Player
-from torch.optim.lr_scheduler import StepLR
-from IPython.display import display, clear_output
+import random
+from environment import BombermanEnvironment, HEIGHT, WIDTH, TILE_SIZE
+import pygame
 import matplotlib.pyplot as plt
 
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
-Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
 
-def to_tensor(data_list, dtype=torch.float32):
-    if isinstance(data_list[0], np.ndarray):
-        data_list = np.array(data_list)
-    return torch.tensor(data_list, dtype=dtype)
 
-class DQNNetwork(nn.Module): 
-    def __init__(self, input_dim, output_dim,hidden_dim=128):
-        super(DQNNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 128)
-        self.fc4 = nn.Linear(128, output_dim)
-        self.dropout = nn.Dropout(0.5)
+def ensure_directory_exists(path):
+    """Ensure that the given directory path exists."""
+    if not os.path.exists(path):
+        os.makedirs(path)
 
+
+
+rewards_history = []
+
+class QNetwork(nn.Module): #basic feed-forward neural network with 3 layers 
+    '''The QNetwork is the tool that evaluates how good each of the moves (up, down, left, right) is. Maybe moving up leads to a dead-end, so the QNetwork would give that action a low value.
+    Meanwhile, moving right could lead to a safe spot, so the QNetwork would assign a high value to that action.
+    
+    The neural network is used to approximate the Q-values for a given state and possible actions. 
+     This is the feed-forward process: given a state, the network produces Q-values for each action.'''
+    def __init__(self, input_dim, output_dim):
+        super(QNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, output_dim)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = F.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = F.relu(self.fc3(x))
-        x = self.fc4(x)
-        return x
+        #print(f"Shape of x in QNetwork: {x.shape}")  
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        return self.fc3(x)
 
-
-class ReplayBuffer:
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.memory = []
-        self.position = 0
-
-    def push(self, state, action, reward, next_state, done):
-        if len(self.memory) < self.capacity:
-            self.memory.append(None)
-        self.memory[self.position] = (state, action, reward, next_state, done)
-        self.position = (self.position + 1) % self.capacity
-
-    def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
-
-    def __len__(self):
-        return len(self.memory)
-
-class DQNAgent:
-    def __init__(self, input_dim, output_dim, hidden_dim=128, lr=0.001, gamma=0.99, epsilon_start=1.0, epsilon_end=0.01, epsilon_decay_steps=1000):
-        self.model = DQNNetwork(input_dim, output_dim, hidden_dim)
-        self.target_model = DQNNetwork(input_dim, output_dim, hidden_dim)
-        self.target_model.load_state_dict(self.model.state_dict())
-        self.target_model.eval()
-        self.output_dim = output_dim
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+class CoinCollectorAgent: # main logic behind the Deep Q-Learning agent.
+    def __init__(self, state_dim, action_dim, gamma=0.95, epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.1, learning_rate=0.001): 
+        self.state_dim = state_dim #state_dim seems to refer to the number of tiles in the Bomberman game's grid. The game's grid is divided into tiles, and the state might represent the status of each tile (whether it's empty, contains a wall, has a bomb, etc.).
+        self.action_dim = action_dim #represents the number of possible actions the agent can take in a given state
         self.gamma = gamma
-        self.epsilon = epsilon_start
-        self.epsilon_start = epsilon_start
-        self.epsilon_end = epsilon_end
-        self.epsilon_decay_steps = epsilon_decay_steps
-        self.epsilon_decay = (self.epsilon_start - self.epsilon_end) / self.epsilon_decay_steps
-        self.steps_done = 0
-        self.scheduler = StepLR(self.optimizer, step_size=50, gamma=0.9)
-        self.replay_buffer = ReplayBuffer(capacity=10000)
-        self.TARGET_UPDATE = 10  # adjust this value for frequency of updating the target network
+        self.epsilon = epsilon #It represents the likelihood of the agent taking a random action.
+        self.epsilon_decay = epsilon_decay #The factor by which epsilon is reduced after each episode.
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.epsilon_min = epsilon_min #The minimum value to which epsilon can decay.
+        self.q_network = QNetwork(state_dim, action_dim) #Initializes the Q-Network (a neural network) using the provided state and action dimensions. This Q-Network is responsible for estimating the Q-values for given states.
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
+        self.loss_function = nn.MSELoss()
+        self.memory = [] #he agent will store its experiences (state, action, reward, next_state, done) in this memory, and sample from it to train the Q-Network.
+        self.q_values_history = [] # To store the Q-values(confidence scores) as 2D numpy array 
+        
+        
+    def act(self, state):
+        ''' the act method decides on an action based on the current state: 
+        it sometimes chooses a random action (to explore the environment) and sometimes 
+        chooses the action that its Q-network believes will yield the highest future rewards.'''
+        #print(f"Shape of state at the start of act: {state.shape}")
+        if np.random.rand() <= self.epsilon: #This is part of the epsilon-greedy policy, which is a way to balance exploration (trying out random actions) and exploitation (choosing actions based on what the agent has learned) in reinforcement learning.
+            return np.random.choice(self.action_dim) #With a probability of self.epsilon, the agent selects a random action. This is the exploration part. As training progresses, self.epsilon is decayed (multiplied by self.epsilon_decay), so the agent gradually shifts from exploring to exploiting.
+        if state.shape != (1, self.state_dim):
+            print("Incorrect state shape!")
+            return np.random.choice(self.action_dim)
+        state = torch.tensor(state, dtype=torch.float32)#If the agent didn't select a random action, then it needs to process the state to decide on the best action.
+        #print(f"Shape of state after squeeze: {state.shape}")
+        q_values = self.q_network(state) #The state tensor is fed into the agent's Q-network (a neural network) to get the predicted Q-values for each action. Q-values essentially represent the agent's estimate of the future rewards for taking each action in the current state.
+        self.q_values_history.append(q_values.detach().numpy()) 
+        return torch.argmax(q_values).item() #the agent chooses the action corresponding to the maximum Q-value.( single integer representing the chosen action.)
 
-    def choose_action(self, state):
-        self.steps_done += 1
-        self.update_epsilon()
+    def remember(self, state, action, reward, next_state, done): 
+        '''the remember method is used to store transitions the agent encounters so that they can be used later for training the Q-network.'''
+        self.memory.append((state, action, reward, next_state, done))
+        '''In the context of Deep Q-Learning, this "memory" is often called the "replay buffer". The replay buffer is a collection of past experiences that the agent can sample from when it updates its Q-network. 
+        This technique, called "experience replay", helps stabilize the learning process.'''
 
-        state_tensor = torch.FloatTensor(state.flatten()).unsqueeze(0)
 
-        if random.random() < self.epsilon:
-            return random.randrange(0, self.output_dim)  # Ensure output_dim is the correct value for the action space size
-        else:
-            with torch.no_grad():
-                return self.model(state_tensor).max(1)[1].item()
 
-    def update_epsilon(self):
-        self.epsilon -= (self.epsilon_start - self.epsilon_end) / self.epsilon_decay_steps
-        self.epsilon = max(self.epsilon_end, self.epsilon)
-
-    def store_transition(self, state, action, reward, next_state, done):
-        self.replay_buffer.push(state.flatten(), action, reward, next_state.flatten(), done)
-
-    def train(self, batch_size):
-        if len(self.replay_buffer) < batch_size:
+    def replay(self, batch_size):
+        if len(self.memory) < batch_size:
             return
-        
-        transitions = self.replay_buffer.sample(batch_size)
-        batch = Transition(*zip(*transitions))
 
-        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), dtype=torch.bool)
-        non_final_next_states = to_tensor([s for s in batch.next_state if s is not None])
-        state_batch = to_tensor(batch.state)
-        action_batch = to_tensor(batch.action, dtype=torch.int64).unsqueeze(1)
-        reward_batch = to_tensor(batch.reward).unsqueeze(1)
+        minibatch = random.sample(self.memory, batch_size)
 
-        state_action_values = self.model(state_batch).gather(1, action_batch)
-        
-        next_state_values = torch.zeros(batch_size)
-        next_state_values[non_final_mask] = self.target_model(non_final_next_states).max(1)[0].detach()
-        next_state_values = next_state_values.unsqueeze(1) 
-        
-        expected_state_action_values = (next_state_values * self.gamma) + reward_batch
-        
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
+        for state, action, reward, next_state, done in minibatch:
+            # Convert numpy arrays to PyTorch tensors and send to the device
+            state = torch.FloatTensor(state).to(self.device)
+            next_state = torch.FloatTensor(next_state).to(self.device)
+            reward = torch.FloatTensor([reward]).to(self.device)
+            done = torch.FloatTensor([done]).to(self.device)
 
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-        self.optimizer.step()
-        self.scheduler.step()
+            # Ensure state and next_state have the same shape
+            if state.shape != next_state.shape:
+                print(f"Shape mismatch: state: {state.shape}, next_state: {next_state.shape}")
+                continue
 
-        # Update the target network
-        if self.steps_done % self.TARGET_UPDATE == 0:
-            self.target_model.load_state_dict(self.model.state_dict())
+            # Compute the target Q-value
+            with torch.no_grad():
+                target = reward + self.gamma * torch.max(self.q_network(next_state)) * (1 - done)
+
+            # Compute the predicted Q-value
+            predicted_all = self.q_network(state)
+            predicted = predicted_all[0][action] 
+            target = target.view_as(predicted)
+
+            # Compute loss and perform backpropagation
+            loss = self.loss_function(predicted, target)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
 
 
-def dynamic_plot(rewards, episode_durations, ylabel, title):
-    clear_output(wait=True)
+def live_plot(data, figsize=(7,5), title=''):
+    """ Save the training rewards plot to an image """
+    plt.figure(figsize=figsize)
+    plt.plot(data)
+    plt.title(title)
+    plt.grid(True)
+    plt.xlabel('Episode')
+    plt.ylabel('Total Reward')
     
-    fig, axs = plt.subplots(1, 2, figsize=(20, 5))
+    # Ensure the directory for saving plots exists
+    plot_dir = './plots'
+    ensure_directory_exists(plot_dir)
     
-    # Plotting rewards
-    axs[0].plot(rewards, label='Reward')
-    axs[0].set_xlabel("Episode")
-    axs[0].set_ylabel(ylabel)
-    axs[0].set_title(title)
+    plt.savefig(os.path.join(plot_dir, f"rewards_plot_episode_{len(data)}.png"))
     
-    # Plotting episode durations
-    axs[1].plot(episode_durations, label='Episode Duration (s)')
-    axs[1].set_xlabel("Episode")
-    axs[1].set_ylabel("Duration (s)")
-    axs[1].set_title("Episode Duration over Time")
+def save_model(episode):
+    """Function to save the model."""
+    model_save_path = f'/Users/anureddy/Desktop/SEM02/Essential_ML/Bomberman_proj_draft/bomberman_rl/saved_model_ep_{episode}'
+    torch.save(agent.q_network.state_dict(), model_save_path)
+    print(f"\nModel saved at episode {episode} to {model_save_path}")
 
-    plt.legend()
-    plt.show()
 
-       
+# Game loop and training logic
+# Game loop and training logic
+EPISODES = 100
+env = BombermanEnvironment()
+MAX_STEPS = 200
+state_dim = (HEIGHT // TILE_SIZE) * (WIDTH // TILE_SIZE) + 1  # "+1" for the turn-encoded value
+agent = CoinCollectorAgent(state_dim, 4)
+
+for episode in range(EPISODES):
+    print(f"Running Episode: {episode + 1}/{EPISODES}", end='\r')  # Display the current episode
+    
+    state = env.reset().reshape(1, -1)
+    #print(f"Shape of state before reshape: {state.shape}") 
+    done = False
+    total_reward = 0
+    turn_count = 0
+
+    while not done and turn_count < MAX_STEPS:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
         
+        # Encode the current turn
+        turn_encoded = 0.9 ** turn_count
+        extended_state = np.append(state, turn_encoded).reshape(1, -1)
+        #print(f"Shape of extended_state before feeding to network: {extended_state.shape}") 
+        action = agent.act(extended_state)
+        next_state, reward, done = env.step(action)
+        next_state = next_state.reshape(1, -1)
+        #print(f"Shape of next_state before reshape: {next_state.shape}") 
+        # Append the turn_encoded to the next_state
+        next_extended_state = np.append(next_state, turn_encoded).reshape(1, -1)
+        #next_extended_state_tensor = torch.tensor(next_extended_state, dtype=torch.float32)
+        #print(f"Shape of next_extended_state before feeding to network: {next_extended_state.shape}")
+        agent.remember(extended_state, action, reward, next_extended_state, done)
+        agent.replay(32)
 
-def train_dqn(agent, env, episodes, batch_size, save_model_every=20):
-    start_time = time.time()
-    rewards = []
-    episode_durations = []
-    MAX_STEPS_PER_EPISODE = 500
+        state = next_state
+        total_reward += reward
 
-    for episode in range(episodes):
-        episode_start_time = time.time()
-        state = env.reset()
-        done = False
-        total_reward = 0
-        steps = 0
+        env.render()
+        pygame.time.wait(100)  # Delay for visualization
+        
+        turn_count += 1
+        #print("Shape of extended_state in replay:", extended_state.shape)
+        #print("Shape of next_extended_state in replay:", next_extended_state.shape)
 
-        while not done and steps < MAX_STEPS_PER_EPISODE: 
-            action = agent.choose_action(state)
-            next_state, reward, done, info = env.step(action)
+    print(f"Episode: {episode + 1}/{EPISODES}, Total Reward: {total_reward}, Epsilon: {agent.epsilon}")
+    rewards_history.append(total_reward)
+    
+    # Save the model every 50 episodes
+    if (episode + 1) % 100 == 0:
+        save_model(episode + 1)
 
-            agent.store_transition(state, action, reward, next_state, done)
-            agent.train(batch_size)
+    # Visualize rewards every 10 episodes
+    if (episode + 1) % 50 == 0:
+        live_plot(np.array(rewards_history), title=f"Episode: {episode + 1}/{EPISODES}")
+np.save('q_values_history.npy', np.array(agent.q_values_history))
+print(f"\nTraining completed for {EPISODES} episodes.")
 
-            state = next_state
-            total_reward += reward
-            steps += 1
-
-        # If you reach the maximum steps without finishing the game, adjust reward accordingly
-        if steps >= MAX_STEPS_PER_EPISODE: 
-            if env.coins_collected == 0:
-                reward = -50
-            elif env.coins_collected < 3:
-                reward = -20
-            else:
-                reward = -10
-            total_reward += reward
-
-        coins_per_turn = env.coins_collected / steps if steps else 0
-        agent.update_epsilon()
-        episode_end_time = time.time()
-        rewards.append(total_reward)
-        episode_durations.append(episode_end_time - episode_start_time)
-        current_lr = agent.optimizer.param_groups[0]['lr']
-        print(f"Episode: {episode + 1}/{episodes}, Steps: {steps}, Total Reward: {total_reward}, Coins Collected: {env.coins_collected}, Coins per Turn: {coins_per_turn:.2f}, Epsilon: {agent.epsilon:.4f}, Episode Duration: {episode_end_time - episode_start_time:.2f} seconds")
-        if episode % 10 == 0: 
-            dynamic_plot(rewards, episode_durations, ylabel="Total Reward", title="Training Performance")
-        if episode % save_model_every == 0:
-            torch.save(agent.model.state_dict(), f"model_episode_{episode}.pth")
-
-    end_time = time.time()
-    print(f"Training complete. Total Duration: {end_time - start_time:.2f} seconds")
-
-    return rewards, episode_durations
-
-
-
-
-
-if __name__ == "__main__":
-    # Hyperparameters
-    EPSILON_DECAY_STEPS = 5000
-    LEARNING_RATE = 0.0003
-    GAMMA = 0.99
-
-    env = BombermanEnvironment()
-    agent = DQNAgent(input_dim=WIDTH*HEIGHT + 1, output_dim=4, lr=LEARNING_RATE, gamma=GAMMA, epsilon_decay_steps=EPSILON_DECAY_STEPS)
-    episodes = 100
-    batch_size = 32
-
-    rewards, episode_durations = train_dqn(agent, env, episodes, batch_size)
+'''NOTE:
+    1. the agent's "confidence" in choosing an action in a particular state is determined by the Q-values predicted by the Q-Network. The action with the highest Q-value is considered the best action in that state based on the agent's current knowledge.
+    2.The agent's exploration rate (epsilon) decays over time, making the agent rely more on the Q-values and less on random exploration as it gains experience. 
+    3. To load the confidence scores use 
+    q_values_history = np.load('q_values_history.npy') Example: The agent encounters the first state. The Q-values predicted by the network for this state are [5.2, 6.3, 5.1, 6.0], corresponding to the four actions (up, down, left, right).'''
