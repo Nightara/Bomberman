@@ -1,10 +1,8 @@
 class Player:
-    def __init__(self, x, y, wall_positions, crate_positions, WIDTH, HEIGHT):
+    def __init__(self, x, y, wall_positions, WIDTH, HEIGHT):
         self.x = x
         self.y = y
-        self.prev_position = (x, y)  # Initialize the prev_position to the starting position
         self.wall_positions = wall_positions
-        self.crate_positions = crate_positions
         self.WIDTH = WIDTH
         self.HEIGHT = HEIGHT
         self.recent_locations = []
@@ -22,17 +20,19 @@ class Player:
         if new_x < 0 or new_x >= self.WIDTH or new_y < 0 or new_y >= self.HEIGHT:
             return False
 
-        # Check if the new position collides with a wall or crate
-        if (new_x, new_y) in self.wall_positions or (new_x, new_y) in self.crate_positions:
+        # Check if the new position collides with a wall
+        if (new_x, new_y) in self.wall_positions:
             return False
 
         return True
 
     def move(self, dx, dy):
         if self.is_valid_move(dx, dy):
-            # Update prev_position before making the move
-            self.prev_position = (self.x, self.y)
             self.x += dx
             self.y += dy
+            
+    def draw(self, screen, image):
+        """Draws the player on the given screen using the provided image."""
+        screen.blit(image, (self.x, self.y))
 
     # Additional methods related to rendering or any other operations...
