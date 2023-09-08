@@ -1,126 +1,136 @@
-import numpy as np
+import pygame
 import random
-from callback import Player
+import numpy as np
+from callback import Player 
+pygame.init() # Thsi initializes all the modules required for pygame 
 
-WIDTH, HEIGHT = 13, 11
-TILE_SIZE = 1  # Just a representation since we're not using pygame
+# Load images/assets
+WALL_IMAGE = pygame.image.load("brick.png")
+CRATE_IMAGE = pygame.image.load("crate.png") 
+PLAYER_IMAGE = pygame.image.load("player2.png")
+COIN_IMAGE = pygame.image.load("coin.png")
 
+#The width of the WALL_IMAGE is used as the TILE_SIZE, representing the size of each grid cell.
+TILE_SIZE = WALL_IMAGE.get_width()
+WIDTH = 13 * TILE_SIZE
+HEIGHT = 11 * TILE_SIZE
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption('Bomberman Environment')
+
+#This class defines the Bomberman game environment.
 class BombermanEnvironment:
-    def __init__(self, max_coins=10, max_turns=200): 
-        self.max_coins = max_coins
-        self.max_turns = max_turns
-        self.wall_positions, self.crate_positions, self.coin_positions = self.generate_environment_positions()
-        self.turn = 0
-        self.coins_collected = 0  
-        self.player = Player(0, 0, self.wall_positions, self.crate_positions, WIDTH, HEIGHT)
-        self.player.recent_locations = []
-        self.player.visited_locations = set()
-        self.last_action = None
-    def reward(self, action):
-        current_position = tuple(self.player.get_position())
+    def __init__(self): 
+        self.wall_positions, self.coin_positions = self.generate_environment_positions()
+        self.player = Player(TILE_SIZE, TILE_SIZE, self.wall_positions, WIDTH, HEIGHT)
+        self.grid_state = self.get_initial_grid_state()
 
-        # If the player collects a coin
-        if current_position in self.coin_positions:
-            #self.coins_collected += 1
-            return 10
+    def pos_to_grid(self, x, y):
+        return y // TILE_SIZE, x // TILE_SIZE
 
-        # If the player tries to move into a wall
-        if current_position in self.wall_positions:
-            return -2
-
-        prev_distance = self.calculate_distance_to_nearest_coin(self.player.prev_position)
-        current_distance = self.calculate_distance_to_nearest_coin(current_position)
-    
-        if current_distance < prev_distance:
-          return 0.5  # Reward for moving closer to a coin
-        else:
-          return -0.5  # Reduced penalty for regular movement
-
-  
+    def grid_to_pos(self, i, j):
+        return j * TILE_SIZE, i * TILE_SIZE
 
     def generate_environment_positions(self):
-        walls = [(x, y) for x in range(0, WIDTH, 2*TILE_SIZE) for y in range(0, HEIGHT, 2*TILE_SIZE)]
-        possible_coin_positions = [(x, y) for x in range(0, WIDTH, TILE_SIZE) for y in range(0, HEIGHT, TILE_SIZE) if (x, y) not in walls]
-        
-        # Ensure that the number of possible coin positions is not less than max_coins
-        num_possible_coin_positions = len(possible_coin_positions)
-        if num_possible_coin_positions < self.max_coins:
-            self.max_coins = num_possible_coin_positions
-        
-        coins = random.sample(possible_coin_positions, self.max_coins)
-        print(f"Number of coins generated: {len(coins)}")  # Add this line
-        return walls, [], set(coins)
+    # Initialize empty sets for walls and coins
+        walls = set()
+        coin_positions = set()
 
+        # Create a helper function to check if a position is surrounded by walls
+        def is_surrounded(x, y, wall_set):
+            neighbors = [
+                (x + TILE_SIZE, y),
+                (x - TILE_SIZE, y),
+                (x, y + TILE_SIZE),
+                (x, y - TILE_SIZE)
+            ]
+            return all(neighbor in wall_set for neighbor in neighbors)
+
+        # Randomly place walls, ensuring the player's starting position is not surrounded
+        num_walls = 50  # You can adjust this number
+        while len(walls) < num_walls:
+            x = random.randint(0, (WIDTH // TILE_SIZE) - 1) * TILE_SIZE
+            y = random.randint(0, (HEIGHT // TILE_SIZE) - 1) * TILE_SIZE
+            if (x, y) != (TILE_SIZE, TILE_SIZE) and not is_surrounded(x, y, walls):
+                walls.add((x, y))
+
+        # Place coins, ensuring they are not on walls or surrounded by walls
+        while len(coin_positions) < 10:
+            x = random.randint(0, (WIDTH // TILE_SIZE) - 1) * TILE_SIZE
+            y = random.randint(0, (HEIGHT // TILE_SIZE) - 1) * TILE_SIZE
+            if (x, y) not in walls and not is_surrounded(x, y, walls):
+                coin_positions.add((x, y))
+
+        return walls, coin_positions
+
+
+
+    def get_initial_grid_state(self):
+        '''This method initializes the state of the grid. It's a matrix where each cell can represent an entity (wall, coin, or player).'''
+        state = np.zeros((HEIGHT // TILE_SIZE, WIDTH // TILE_SIZE), dtype=int)
+        for x, y in self.wall_positions:
+            state[self.pos_to_grid(x, y)] = 1
+        for x, y in self.coin_positions:
+            state[self.pos_to_grid(x, y)] = 3
+        state[self.pos_to_grid(self.player.x, self.player.y)] = 4
+        return state
     def reset(self):
-        self.coins_collected = 0
-        print(f"At reset: Coins collected = {self.coins_collected}")
-        self.wall_positions, self.crate_positions, self.coin_positions = self.generate_environment_positions()
-        self.player = Player(1, 1, self.wall_positions, self.crate_positions, WIDTH, HEIGHT)
-        self.turn = 0
-        self.last_action = None
-        return self.get_state()
+        '''Resets the game to its initial state. Useful for starting new episodes in learning algorithms.'''
+        self.wall_positions, self.coin_positions = self.generate_environment_positions()
+        self.player = Player(TILE_SIZE, TILE_SIZE, self.wall_positions, WIDTH, HEIGHT)
+        self.grid_state = self.get_initial_grid_state()
+        return self.grid_state.copy()
 
 
-    
-    def calculate_distance_to_nearest_coin(self, position):
-        distances = [abs(position[0] - coin_x) + abs(position[1] - coin_y) for coin_x, coin_y in self.coin_positions]
-        if distances:
-            return min(distances)
-        return 0 
+    def step(self, action): # reward policy 
+        prev_pos = (self.player.x, self.player.y)
+        dx, dy = 0, 0
+        if action == 0:
+            dy = -TILE_SIZE
+        elif action == 1:
+            dy = TILE_SIZE
+        elif action == 2:
+            dx = -TILE_SIZE
+        elif action == 3:
+            dx = TILE_SIZE
+        
+        can_move = self.player.is_valid_move(dx, dy)
+        self.player.move(dx, dy)
+        
+        reward = 0  # Initialize with zero reward
+        if not can_move:
+            reward = -1  # Large negative reward for hitting a wall
+        
+        # Update grid_state for player's new position
+        self.grid_state[self.pos_to_grid(*prev_pos)] = 0
+        self.grid_state[self.pos_to_grid(self.player.x, self.player.y)] = 4
 
+        if (self.player.x, self.player.y) in self.coin_positions:
+            self.coin_positions.remove((self.player.x, self.player.y))
+            self.grid_state[self.pos_to_grid(self.player.x, self.player.y)] = 4  # Mark as player position
+            reward = 15  # Positive reward for collecting a coin
 
+        done = len(self.coin_positions) == 0
+        return self.grid_state.copy(), reward, done
 
-    def step(self, action):
-      dx, dy = 0, 0
-      if action == 0: dy = -1
-      elif action == 1: dy = 1
-      elif action == 2: dx = -1
-      elif action == 3: dx = 1
-
-      self.player.move(dx, dy)
-      current_position = tuple(self.player.get_position())
-
-      # Check for coin collection first
-      if current_position in self.coin_positions:
-          self.coins_collected += 1  # Increment coin count
-          self.coin_positions.remove(current_position)  # Remove the coin from the environment once collected
-          print(f"Coin collected at position {current_position} by action {action}. Total coins now: {self.coins_collected}")
-          reward = 10
-      else:
-          reward = self.reward(action)
-
-      done = self.coins_collected >= self.max_coins or len(self.coin_positions) == 0
-      self.turn += 1
-
-      info = {'coins_collected': self.coins_collected}
-      return self.get_state(), reward, done, info
-
-
-
-
-  
 
     def get_state(self):
-        grid = np.zeros((WIDTH, HEIGHT))
-        grid[self.player.x][self.player.y] = 1
-        for (x, y) in self.coin_positions:
-            grid[x][y] = 2
-        for (x, y) in self.crate_positions:
-            grid[x][y] = 3
-        for (x, y) in self.wall_positions:
-            grid[x][y] = 4
-        flattened_grid = grid.flatten()/4.0
-        turn_encoded = 0.9 ** self.turn
-        return np.concatenate([flattened_grid, [turn_encoded]])
-
-def print_coin_collection(self):
-    current_position = tuple(self.player.get_position())
-    if current_position in self.coin_positions:
-        print(f"Coin collected at position {current_position} by action {self.last_action}. Total coins now: {self.coins_collected}")
-        self.coin_positions.remove(current_position)
-        self.last_action = None
-    else:
-        print("No coins collected")
+        '''This method returns the current state of the game. 
+        It's used for machine learning algorithms to understand the current situation of the game.'''
+        max_coins = 10
+        state = [self.player.x, self.player.y]
+        for coin in list(self.coin_positions)[:max_coins]:
+            state.extend(coin)
+        # Padding with zeros if there are fewer coins
+        while len(state) < 2 + max_coins * 2:
+            state.extend([0, 0])
+        return np.array(state)
 
 
- 
+    def render(self):
+        screen.fill((0, 0, 0))
+        for x, y in self.wall_positions:
+            screen.blit(WALL_IMAGE, (x, y))
+        for x, y in self.coin_positions:
+            screen.blit(COIN_IMAGE, (x, y))
+        self.player.draw(screen, PLAYER_IMAGE)
+        pygame.display.flip()
