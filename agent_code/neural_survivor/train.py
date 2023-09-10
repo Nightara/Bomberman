@@ -1,22 +1,49 @@
 import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from agent_code.neural_survivor.callbacks import gather_input
 
 
-def setup(self):
-    """Called once before a set of games to initialize data structures etc.
+translate_move = {
+    "UP": np.array([1.0, 0.0, 0.0, 0.0, 0.0]),
+    "DOWN": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
+    "LEFT": np.array([0.0, 0.0, 1.0, 0.0, 0.0]),
+    "RIGHT": np.array([0.0, 0.0, 0.0, 1.0, 0.0]),
+    "WAIT": np.array([0.0, 0.0, 0.0, 0.0, 1.0]),
+}
 
-    The 'self' object passed to this method will be the same in all other
-    callback methods. You can assign new properties (like bomb_history below)
-    here or later on, and they will be persistent even across multiple games.
-    You can also use the `self.logger` object at any time to write to the log
-    file for debugging (see https://docs.python.org/3.7/library/logging.html).
+
+def setup_training(self):
+    """Prepares the model for training.
     """
-    self.logger.debug("Successfully entered setup code")
+    self.cache = {
+        "inputs": [],
+        "labels": [],
+    }
+    self.loss_fn = nn.BCELoss()
+    self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
 
 
-def next_move(self, game_state):
+def game_events_occurred(self, old_game_state, self_action, new_game_state, event):
+    self.cache["inputs"].append(gather_input(old_game_state))
+    move = trainer_move(old_game_state)
+    self.cache["labels"].append(translate_move[move[0]] * move[1])
+
+
+def end_of_round(self, last_game_state, last_action, event):
+    game_events_occurred(self, last_game_state, last_action, None, event)
+    loss = self.loss_fn(self.model(torch.stack(self.cache["inputs"])), torch.tensor(np.stack(self.cache["labels"]), dtype=torch.float32))
+    self.optimizer.zero_grad()
+    loss.backward()
+    self.optimizer.step()
+    torch.save(self.model, "model.dat")
+
+
+def trainer_move(game_state):
     """Returns the best move, but also this agent's confidence in its correctness.
     """
-    self.logger.info("Picking action according to rule set")
     # Gather information about the game state
     arena = game_state["field"]
     _, _, _, (x, y) = game_state["self"]
@@ -91,15 +118,8 @@ def next_move(self, game_state):
     # Pick the highest rated action added to the proposals list that is also valid
     while len(action_ideas) > 0:
         a = action_ideas.pop()
-        if a[0] in valid_actions:
+        if a in valid_actions:
             return a
 
     # Return the default move WAIT if nothing else works
     return "WAIT", 0.1
-
-
-def act(self, game_state):
-    """Wraps the next_move method to only return the move and drop the confidence score.
-    """
-    move, _ = next_move(self, game_state)
-    return move
