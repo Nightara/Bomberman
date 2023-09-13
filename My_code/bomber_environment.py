@@ -1,17 +1,22 @@
 import pygame
 import random
 import numpy as np
-from callback import Player 
-pygame.init() # Thsi initializes all the modules required for pygame 
+from My_code.callback import Player
+## pygame.init() # Thsi initializes all the modules required for pygame
 
 # Load images/assets
-WALL_IMAGE = pygame.image.load("brick.png")
-CRATE_IMAGE = pygame.image.load("crate.png") 
-PLAYER_IMAGE = pygame.image.load("player2.png")
-COIN_IMAGE = pygame.image.load("coin.png")
+## WALL_IMAGE = pygame.image.load("brick.png")
+WALL_IMAGE = None
+## CRATE_IMAGE = pygame.image.load("crate.png")
+CRATE_IMAGE = None
+## PLAYER_IMAGE = pygame.image.load("player2.png")
+PLAYER_IMAGE = None
+## COIN_IMAGE = pygame.image.load("coin.png")
+COIN_IMAGE = None
 
 #The width of the WALL_IMAGE is used as the TILE_SIZE, representing the size of each grid cell.
-TILE_SIZE = WALL_IMAGE.get_width()
+TILE_SIZE = 30
+## TILE_SIZE = WALL_IMAGE.get_width()
 WIDTH = 13 * TILE_SIZE
 HEIGHT = 11 * TILE_SIZE
 screen = pygame.display.set_mode((WIDTH, HEIGHT))

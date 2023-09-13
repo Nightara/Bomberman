@@ -27,7 +27,7 @@ SCENARIOS = {
         "COIN_COUNT": 9
     }
     # Feel free to add more game modes and properties
-    # game is created in environment.py -> BombeRLeWorld -> build_arena()
+    # game is created in bomber_environment.py -> BombeRLeWorld -> build_arena()
 }
 MAX_AGENTS = 4
 

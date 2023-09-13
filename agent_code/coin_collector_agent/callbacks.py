@@ -73,7 +73,7 @@ def act(self, game_state):
     Called each game step to determine the agent's next action.
 
     You can find out about the state of the game environment via game_state,
-    which is a dictionary. Consult 'get_state_for_agent' in environment.py to see
+    which is a dictionary. Consult 'get_state_for_agent' in bomber_environment.py to see
     what it contains.
     """
     self.logger.info('Picking action according to rule set')

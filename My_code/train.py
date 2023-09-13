@@ -5,7 +5,7 @@ import logging
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 import numpy as np
 import random
-from environment import BombermanEnvironment, HEIGHT, WIDTH, TILE_SIZE
+from bomber_environment import BombermanEnvironment, HEIGHT, WIDTH, TILE_SIZE
 import pygame
 import matplotlib.pyplot as plt
 

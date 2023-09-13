@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import random
-from environment import BombermanEnvironment, HEIGHT, WIDTH, TILE_SIZE
+from My_code.bomber_environment import HEIGHT, WIDTH, TILE_SIZE
 import pygame
 import matplotlib.pyplot as plt
 
@@ -70,6 +70,9 @@ class CoinCollectorAgent: # main logic behind the Deep Q-Learning agent.
         self.q_values_history.append(q_values.detach().numpy()) 
         return torch.argmax(q_values).item() #the agent chooses the action corresponding to the maximum Q-value.( single integer representing the chosen action.)
 
+    def next_move(self, state):
+        return self.act(state), 0.25
+
     def remember(self, state, action, reward, next_state, done): 
         '''the remember method is used to store transitions the agent encounters so that they can be used later for training the Q-network.'''
         self.memory.append((state, action, reward, next_state, done))
@@ -136,16 +139,18 @@ def save_model(episode):
 
 # Game loop and training logic
 # Game loop and training logic
-EPISODES = 100
-env = BombermanEnvironment()
+## EPISODES = 100
+EPISODES = 0
+## env = BombermanEnvironment()
 MAX_STEPS = 200
 state_dim = (HEIGHT // TILE_SIZE) * (WIDTH // TILE_SIZE) + 1  # "+1" for the turn-encoded value
 agent = CoinCollectorAgent(state_dim, 4)
 
 for episode in range(EPISODES):
     print(f"Running Episode: {episode + 1}/{EPISODES}", end='\r')  # Display the current episode
-    
-    state = env.reset().reshape(1, -1)
+
+    state = None
+    ## state = env.reset().reshape(1, -1)
     #print(f"Shape of state before reshape: {state.shape}") 
     done = False
     total_reward = 0
@@ -162,7 +167,8 @@ for episode in range(EPISODES):
         extended_state = np.append(state, turn_encoded).reshape(1, -1)
         #print(f"Shape of extended_state before feeding to network: {extended_state.shape}") 
         action = agent.act(extended_state)
-        next_state, reward, done = env.step(action)
+        next_state, reward, done = None, None, None
+        ## next_state, reward, done = env.step(action)
         next_state = next_state.reshape(1, -1)
         #print(f"Shape of next_state before reshape: {next_state.shape}") 
         # Append the turn_encoded to the next_state
@@ -175,7 +181,7 @@ for episode in range(EPISODES):
         state = next_state
         total_reward += reward
 
-        env.render()
+        # env.render()
         pygame.time.wait(100)  # Delay for visualization
         
         turn_count += 1

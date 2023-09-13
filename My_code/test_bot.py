@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pygame
 import torch
-from environment import BombermanEnvironment, HEIGHT, WIDTH, TILE_SIZE
+from bomber_environment import BombermanEnvironment, HEIGHT, WIDTH, TILE_SIZE
 from train_pytorch import CoinCollectorAgent, MAX_STEPS
 
 def test_trained_agent(model_path, episodes=10):
