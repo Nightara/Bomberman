@@ -20,8 +20,8 @@ pygame.display.set_caption('Bomberman Environment')
 #This class defines the Bomberman game environment.
 class BombermanEnvironment:
     def __init__(self): 
-        self.wall_positions, self.coin_positions = self.generate_environment_positions()
-        self.player = Player(TILE_SIZE, TILE_SIZE, self.wall_positions, WIDTH, HEIGHT)
+        self.wall_positions, self.coin_positions, self.crate_positions = self.generate_environment_positions()
+        self.player = Player(TILE_SIZE, TILE_SIZE, self.wall_positions, self.crate_positions, WIDTH, HEIGHT)
         self.grid_state = self.get_initial_grid_state()
 
     def pos_to_grid(self, x, y):
@@ -34,6 +34,7 @@ class BombermanEnvironment:
     # Initialize empty sets for walls and coins
         walls = set()
         coin_positions = set()
+        crate_positions = set()
 
         # Create a helper function to check if a position is surrounded by walls
         def is_surrounded(x, y, wall_set):
@@ -59,8 +60,16 @@ class BombermanEnvironment:
             y = random.randint(0, (HEIGHT // TILE_SIZE) - 1) * TILE_SIZE
             if (x, y) not in walls and not is_surrounded(x, y, walls):
                 coin_positions.add((x, y))
+        
+        #Place crates, ensuring they are not on walls or surrounded by walls
+        num_crates = 20
+        while len(crate_positions) < num_crates:
+            x = random.randint(0, (WIDTH//TILE_SIZE) - 1) * TILE_SIZE
+            y = random.randint(0, (HEIGHT//TILE_SIZE) - 1) * TILE_SIZE
+            if(x,y) not in walls and not is_surrounded(x, y, walls):
+                crate_positions.add((x,y))
 
-        return walls, coin_positions
+        return walls, coin_positions, crate_positions
 
 
 
@@ -71,12 +80,14 @@ class BombermanEnvironment:
             state[self.pos_to_grid(x, y)] = 1
         for x, y in self.coin_positions:
             state[self.pos_to_grid(x, y)] = 3
+        for x,y in self.crate_positions:
+            state[self.pos_to_grid(x, y)] = 2
         state[self.pos_to_grid(self.player.x, self.player.y)] = 4
         return state
     def reset(self):
         '''Resets the game to its initial state. Useful for starting new episodes in learning algorithms.'''
-        self.wall_positions, self.coin_positions = self.generate_environment_positions()
-        self.player = Player(TILE_SIZE, TILE_SIZE, self.wall_positions, WIDTH, HEIGHT)
+        self.wall_positions, self.coin_positions, self.crate_positions = self.generate_environment_positions()
+        self.player = Player(TILE_SIZE, TILE_SIZE, self.wall_positions, self.crate_positions, WIDTH, HEIGHT)
         self.grid_state = self.get_initial_grid_state()
         return self.grid_state.copy()
 
@@ -117,12 +128,17 @@ class BombermanEnvironment:
         '''This method returns the current state of the game. 
         It's used for machine learning algorithms to understand the current situation of the game.'''
         max_coins = 10
+        max_crates = 10
         state = [self.player.x, self.player.y]
         for coin in list(self.coin_positions)[:max_coins]:
             state.extend(coin)
         # Padding with zeros if there are fewer coins
+        for crate in list(self.crate_positions)[:max_crates]:
+            state.extend(max_crates)
         while len(state) < 2 + max_coins * 2:
             state.extend([0, 0])
+        while len(state) < 2 + max_crates * 2:
+            state.extend([0,0])
         return np.array(state)
 
 
@@ -132,5 +148,7 @@ class BombermanEnvironment:
             screen.blit(WALL_IMAGE, (x, y))
         for x, y in self.coin_positions:
             screen.blit(COIN_IMAGE, (x, y))
+        for x, y in self.crate_positions:
+            screen.blit(CRATE_IMAGE, (x, y))
         self.player.draw(screen, PLAYER_IMAGE)
         pygame.display.flip()
