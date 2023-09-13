@@ -1,8 +1,9 @@
 class Player:
-    def __init__(self, x, y, wall_positions, WIDTH, HEIGHT):
+    def __init__(self, x, y, wall_positions, crate_positions, WIDTH, HEIGHT):
         self.x = x
         self.y = y
         self.wall_positions = wall_positions
+        self.crate_positions = crate_positions
         self.WIDTH = WIDTH
         self.HEIGHT = HEIGHT
         self.recent_locations = []
@@ -22,6 +23,10 @@ class Player:
 
         # Check if the new position collides with a wall
         if (new_x, new_y) in self.wall_positions:
+            return False
+        
+        # Check if the new position collides with a crates
+        if (new_x, new_y) in self.crate_positions:
             return False
 
         return True
