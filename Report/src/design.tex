@@ -1,0 +1,43 @@
+To tackle the variety of different tasks our agent has to solve, we decided to split our agent into separate subtasks,
+each of which can be trained individually without affecting the performance of the other tasks.
+To combine all agents into a single agent capable of handling all tasks at once, we created a governor agent, whose only
+task is to handle the inputs of all subtasks, compare them, and pick the action provided by the agent with the highest
+confidence in its prediction.
+To enable this functionality, we extended the original agent structure with an additional \listinline{next\_move()}
+method, which takes the exact same input as \listinline{act()}, but returns a tuple of the next move and a confidence
+value within [0, 1].
+The governor then takes these move suggestions, weights them based on an internal decision systems, and returns one of
+the provided suggestions as its overall choice.
+
+The  advantage of this approach is the ability to tweak the performance at one task without disrupting any other task -
+either by improving the corresponding sub-agent, or by adjusting the weights to accommodate for a hyperfocus on certain
+tasks.
+
+For our submission, we decided to split our agent into the following sub-agents:
+\begin{itemize}
+  \item Survivor: An agent focusing on not getting hit by explosions.
+  \item Collector: An agent tasked with pathing to and collecting coins.
+  \item Coin Creator: An agent trying to maximize the number of crates destroyed to generate new coins and paths.
+  \item Pathfinder: An agent focusing on tracking down opponents.
+  \item Bomber: An agent with the goal to take down opponents.
+\end{itemize}
+
+\subsection{Governor Design}
+\label{subsec:design-governor}
+In the submitted version, we decided to go with a simple, static implementation of the governor.
+Every sub-agent is registered within the governor by providing its \listinline{setup()} and \listinline{next\_move()}
+callbacks to the governor, which are then stored for later.
+During its own \listinline{setup()}, the governor forwards the call to all sub-agents.
+In its \listinline{act()} method, it once again forwards the call to all sub-agents, retrieves the suggestions and
+confidence values for each of them, and picks the move associated with the highest confidence value after multiplication
+with its stored weights.
+The weights were determined experimentally, and the last part of our \enquote{training} consisted of testing multiple
+variations, tweaking these weights whenever we saw the governor focusing too much on one aspect of the game.
+
+\subsection{Survivor Design}
+\label{subsec:survivor-design}
+The task we considered to be the most important one is the Survivor agent.
+After some thought, we decided to only focus on short-term survival, which allows this agent to only use what we called
+\enquote{local vision}, or vision of the 5x5 square centered around the agent.
+We decided to use a Neural Network with 25 input neurons, one for each of these local squares, and trained it to survive
+for as many turns as possible.

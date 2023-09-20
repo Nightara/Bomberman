@@ -1,0 +1,83 @@
+%! Author = Florian
+%! Date = 20.09.2023
+
+% Preamble
+\documentclass[12pt]{article}
+
+% Packages
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{caption}
+\usepackage{courier}
+\usepackage{scrbase}
+\usepackage{wrapfig}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{glossaries}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage[autostyle]{csquotes}
+\usepackage[onehalfspacing]{setspace}
+\usepackage[backend=biber,style=numeric]{biblatex}
+
+\makeglossaries
+\glsdisablehyper
+\addbibresource{main.bib}
+
+% Document
+\begin{document}
+  % Term definitions
+  \newacronym{ml}{ML}{Machine Learning}
+
+  % Page style
+  \pagestyle{fancy}
+
+  % Title page
+  \thispagestyle{empty}
+  \begin{center}
+    \Large Report for Bomberman ML Project\\[2\baselineskip]
+    \large\uppercase{Bachelorarbeit}\\
+    by\\
+    Anu Reddy(?), Keerthan Ugrani, and Florian Tichawa\\
+    [2\baselineskip]
+    \today\\
+    \vfill
+  \end{center}
+
+  % Table of contents
+  \pagebreak
+  \tableofcontents
+
+  % Main pages
+  \pagebreak
+  \glsresetall
+  \section{Introduction}
+  \label{sec:intro}
+  \input{intro}
+
+  \section{Agent Design}
+  \label{sec:design}
+  \input{design}
+
+  \section{Training}
+  \label{sec:training}
+  \input{training}
+
+  \section{Discussion}
+  \label{sec:discussion}
+  \input{discussion}
+
+  % Glossaries
+  \pagebreak
+  \printglossaries
+
+  % Sources
+  \pagebreak
+  \printbibliography
+\end{document}

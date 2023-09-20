@@ -1,0 +1,38 @@
+The project task was to create and train a \gls{ml} algorithm capable of playing the game \enquote{Bomberman}.
+The program, referred to as \enquote{agent} from here on, should be able to run in the Python game environment provided
+by Prof.~Koethe in his GitHub repository\cite{githubbase}.
+The environment provided takes care of the general game logic, calls all participating agents in order, and communicates
+the move returned by every agent with all participants.
+For the agent implementation, the main logic should be contained in the \listinline{act()} method of the callbacks.py
+file, as it will be the entry point for the game environment.
+In the end, every team should create at least two different \gls{ml} models, one of which will be submitted to compete
+against the submitted model of every other team.
+The project code for our submission, including the entire coding history, is publicly accessible on
+GitHub\cite{githubown}.
+
+\subsection{Game Rules}
+\label{subsec:rules}
+In this version of Bomberman, all agents will be launched into an unknown arena consisting of rectangular grid built
+from the following tiles:
+\begin{itemize}
+  \item Free tiles - these tiles can be moved through and have no further effects.
+  \item Agents - these tiles contain an agent and can not be moved through.
+  \item Bombs - these tiles indicate the position of a placed bomb amd can be moved through.
+  \item Explosion tiles - these tiles destroy any agent contained within them, and spawn around a bomb four time steps
+after its placement.
+  \item Solid tiles - these tiles can not be moved through.
+  \item Crates - these tiles can not be moved through, but they will be destroyed by bombs and can contain coins.
+  \item Coins - these tiles can be moved through and contain a coin which can be picked up by entering the tile.
+\end{itemize}
+
+Every agent will act in order, its actions will be resolved before the next agent acts, and the goal of the game is to
+survive longer than every other participant.
+In case of a tie (E.g.~caused by two remaining agents dying to the same bomb), the total score will determine a winner.
+Taking out an opponent or collecting coins raises an agents score.
+
+Furthermore, the game is limited to a total of 400 game steps, and every agent has to calculate its next move within
+0.5 seconds.
+Failure to meet the time limit will be punished by not allowing the offending agent to move on this turn, and the time
+taken beyond the limit will be deducted from the agent's next turn timer.
+Illegal moves (E.g.~attempting to move into a wall) will be caught by the environment and replaced with a WAIT action
+instead.
