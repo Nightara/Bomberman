@@ -31,13 +31,41 @@ During its own \listinline{setup()}, the governor forwards the call to all sub-a
 In its \listinline{act()} method, it once again forwards the call to all sub-agents, retrieves the suggestions and
 confidence values for each of them, and picks the move associated with the highest confidence value after multiplication
 with its stored weights.
-The weights were determined experimentally, and the last part of our \enquote{training} consisted of testing multiple
-variations, tweaking these weights whenever we saw the governor focusing too much on one aspect of the game.
+As there are up to six different moves an agent can return, our general goal was to aim for a confidence significantly
+higher than 0.16 for our sub-agents to differentiate between a random low-confidence and a deliberate high-confidence
+choice.
+The weights of all sub-agents were determined experimentally, and the last part of our \enquote{training} consisted of
+testing multiple variations, tweaking these weights whenever we saw the governor focusing too much on one aspect of the
+game.
 
 \subsection{Survivor Design}
 \label{subsec:survivor-design}
 The task we considered to be the most important one is the Survivor agent.
 After some thought, we decided to only focus on short-term survival, which allows this agent to only use what we called
 \enquote{local vision}, or vision of the 5x5 square centered around the agent.
-We decided to use a Neural Network with 25 input neurons, one for each of these local squares, and trained it to survive
-for as many turns as possible.
+Since this limited input greatly reduces the complexity of the agent, we decided to use a three-layer neural network
+with 25 input neurons (Each of them corresponding to one tile of the local square), one hidden layer, and five output
+neurons, each of which encodes for one of the five possible actions (WAIT, UP, DOWN, LEFT, RIGHT).
+
+Like every agent, the survivor also has to provide a confidence for its prediction.
+The goal was to have a high confidence (> 0.33, as there can be up to three different ways to escape an explosion)
+whenever the survivor is too close to an explosion, and a low confidence (< 0.2, as the agent has five different moves
+to choose from) if there is no immediate threat to our agent.
+
+Fortunately, softmax and similar encodings already provide us with a bounded value in the exact range of our confidence
+values for every action, which made neural networks a great choice for the overall agent design we had in mind.
+
+For the actual implementation of this sub-agent, we decided to use the pytorch library, which we had already been
+familiarized with during the lecture.
+
+% TODO: Insert one subsection for every other agent here.
+
+\subsection{Second Agent}
+\label{subsec:second-design}
+As required by the rules laid out in chapter~\ref{subsec:rules}, we had to submit at least two different agents for the
+project.
+Our governor design technically already includes multiple sub-agents, but none of them would be capable of properly
+playing (And winning) the game against somewhat skilled opponents on its own.
+Because the q-learning algorithm used for the bombing agent achieved fairly good results, we decided to train an entire
+bot using only q-learning for our second submission.
+% TODO: Add more information

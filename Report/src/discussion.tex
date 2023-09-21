@@ -1,0 +1,33 @@
+In our opinion, the governor approach we took for our primary submission has a lot of potential.
+We already pointed out some of its advantages over a monolithic implementation in chapter~\ref{sec:design}, but we would
+also show some of its flaws here, and how we tried to avoid them:
+
+First and foremost, the governor only works as the sum of all of its parts.
+If one part is broken or even missing, it is nearly impossible to achieve meaningful results.
+In our case, the central element of Bomberman was survival: Without a surviving agent, we can't use bombs, move around,
+collect coins, or do anything the other sub-agents are supposed to do.
+But this also goes for other synergies: There is no point in collecting coins if we can't create any, and there is no
+point in finding a path to the nearest opponent if there are crates blocking the way, making it impossible to move.
+To circumvent this issue, we took two different approaches:
+In some cases, like the survivor, we created a static, rule-based alternative for the \gls{ml} agent, who would stand in
+for the actual agent until it was ready, allowing us to train everything in parallel without having to wait for the
+other subtasks to complete (Which would defeat one of the main goals of this approach).
+In other cases, like the coin collection and bombing agents, we simply decided to merge these two tasks, as they were
+too closely related to effectively split them up, and train them together as a single sub-agent.
+This approach does go against the general concept of our agent design, but we decided to take these steps in favor of
+time and simplicity.
+With more time at our hands, we probably could have introduced even more tasks and split up the existing ones even
+further to allow for a more fine-grained control over our agent.
+
+If split up sufficiently, this approach could easily be used to customize the agent for whatever purpose it should
+fulfill: Increase the weight of a bombing sub-agent to increase the agent's level of aggression, decrease the priority
+of the survivor to allow for riskier maneuvers, increase the priority of collecting coins over destroying opponents,
+etc.
+
+We could even take this concept even further and change our weights (Which can be seen as meta parameters for our model)
+to change over the course of a game depending on certain factors like number of opponents, our current standing, etc.
+Finally, the governor itself could be implemented as some sort of simple \gls{ml} algorithm, with its weights being the
+parameters adjusted based on training data.
+Based on our experience with our agent training so far though, it would most likely require an unjustifiable amount of
+training data to even get decent results for such a complex agent - even if we assume the sub-agents to be fully trained
+already.
