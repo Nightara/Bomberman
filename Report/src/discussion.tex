@@ -31,3 +31,14 @@ parameters adjusted based on training data.
 Based on our experience with our agent training so far though, it would most likely require an unjustifiable amount of
 training data to even get decent results for such a complex agent - even if we assume the sub-agents to be fully trained
 already.
+
+Another approach to improve the governor would be to replace the decision algorithm: Instead of simply picking the
+action with the highest confidence, the governor could use a decision-forest-like approach of letting all sub-agents
+\enquote{vote} on the best action.
+For example, if one agent suggests the move \enquote{WAIT} with high confidence, but all other agents suggest
+\enquote{LEFT} with slightly lower confidence, then choosing the latter action would be beneficial for multiple goals,
+and thus most likely be more beneficial overall.
+An algorithm combining all suggestions in a weighted vote system and picking whatever action the most sub-agents vote
+for could improve the governor's performance without requiring any additional training.
+On the other hand, this approach would most likely not be fit for the training phase, since it makes decisions
+significantly harder to propagate backwards to their original sources.

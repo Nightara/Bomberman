@@ -27,7 +27,8 @@ For our submission, we decided to split our agent into the following sub-agents:
 In the submitted version, we decided to go with a simple, static implementation of the governor.
 Every sub-agent is registered within the governor by providing its \listinline{setup()} and \listinline{next\_move()}
 callbacks to the governor, which are then stored for later.
-During its own \listinline{setup()}, the governor forwards the call to all sub-agents.
+During its own \listinline{setup()}, the governor forwards the call to all sub-agents, and then initializes the
+sub-agent weights for the decision algorithm.
 In its \listinline{act()} method, it once again forwards the call to all sub-agents, retrieves the suggestions and
 confidence values for each of them, and picks the move associated with the highest confidence value after multiplication
 with its stored weights.
