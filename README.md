@@ -8,7 +8,7 @@ create environments in main to share them with each other.
 
 ## Usage
 
-Please use the mind_puppets agents and other agent we used for training using q-learning is inside the folder My_code
+Please use the mind_puppets agents(for competition) and the other agent we using q-learning(for experimental purpose/backup) is inside the folder My_code-->MY_CODE_NEW
 
 ## How to run
 
