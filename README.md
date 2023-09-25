@@ -5,8 +5,12 @@ branch.
 Most agents will also require certain environments to test them in, so maybe we can
 create environments in main to share them with each other?
 
+## How to run
+
+- python main.py play --agent our_agent rule_based_agent rule_based_agent rule_based_agent (our agent against 3 rule based agents)
+
 ## General concept
-- Main "governor" agent supervises multiple sub-agents, each of them specialized
+- Main "our_agent" agent supervises multiple sub-agents, each of them specialized
 in a single task, and chooses among the suggested moves provided by each sub-agent.
 - Rule-based "harness" prevents governor from choosing invalid moves, forces it to
 pick a different move if the chosen move would lead to an illegal action (E.g.
@@ -46,3 +50,6 @@ arena?
 
 ### Anu
 - Coin collecting agent.
+
+### Keerthan Ugrani
+- Bombing agent
