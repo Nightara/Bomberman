@@ -3,7 +3,12 @@
 We will create one separate branch for every agent, no agent runs in the main
 branch.
 Most agents will also require certain environments to test them in, so maybe we can
-create environments in main to share them with each other?
+create environments in main to share them with each other.
+
+
+## Usage
+
+Please use the mind_puppets agents and other agent we used for training using q-learning is inside the folder My_code
 
 ## How to run
 
