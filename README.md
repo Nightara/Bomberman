@@ -46,3 +46,4 @@ arena?
 
 ### Anu
 - Coin collecting agent.
+- 2nd Experimental Agent/Backup trained on Q-learning 
