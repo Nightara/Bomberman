@@ -38,6 +38,8 @@ overriding any agent moves if survival is at risk (E.g. running out of bombs).
 arena?
   - Metric: ???
   - Local vision?
+- 2nd Experiement Agent 
+  - Trained on Q-learning for collecting coins,destroying opponants and crates and survive from bombs.
 
 ## Task Split (Will be updated as we go)
 ### Florian
