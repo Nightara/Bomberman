@@ -48,4 +48,8 @@ arena?
 
 ### Anu
 - Coin collecting agent.
-- 2nd Experimental Agent/Backup trained on Q-learning 
+- 2nd Experimental Agent/Backup trained on Q-learning
+
+### Keerthan
+- Bombing agent
+- Integrating all the agents
