@@ -1,7 +1,7 @@
 import numpy as np
 
 from agent_code.rule_based_survivor.callbacks import setup as setup_survivor, next_move as next_move_survivor
-from agent_code.our_agent.My_code.train_pytorch import CoinCollectorAgent
+from agent_code.mind_puppets.My_code.train_pytorch import CoinCollectorAgent
 from agent_code.our_agent.bombing_agent.callbacks import setup as setup_bombing, action as act_bombing
 def setup(self):
     bomber = CoinCollectorAgent(13, 4)
