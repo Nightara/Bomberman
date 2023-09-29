@@ -6,7 +6,7 @@ confidence in its prediction.
 To enable this functionality, we extended the original agent structure with an additional \listinline{next\_move()}
 method, which takes the exact same input as \listinline{act()}, but returns a tuple of the next move and a confidence
 value within [0, 1].
-The governor then takes these move suggestions, weights them based on an internal decision systems, and returns one of
+The governor then takes these move suggestions, weights them based on an internal decision system, and returns one of
 the provided suggestions as its overall choice.
 
 The  advantage of this approach is the ability to tweak the performance at one task without disrupting any other task -
@@ -23,6 +23,7 @@ For our submission, we decided to split our agent into the following sub-agents:
 \end{itemize}
 
 \subsection{Governor Design}
+\subsubsection*{Florian}
 \label{subsec:design-governor}
 In the submitted version, we decided to go with a simple, static implementation of the governor.
 Every sub-agent is registered within the governor by providing its \listinline{setup()} and \listinline{next\_move()}
@@ -40,6 +41,7 @@ testing multiple variations, tweaking these weights whenever we saw the governor
 game.
 
 \subsection{Survivor Design}
+\subsubsection*{Florian}
 \label{subsec:survivor-design}
 The task we considered to be the most important one is the Survivor agent.
 After some thought, we decided to only focus on short-term survival, which allows this agent to only use what we called
@@ -48,8 +50,8 @@ Since this limited input greatly reduces the complexity of the agent, we decided
 with 25 input neurons (Each of them corresponding to one tile of the local square), one hidden layer, and five output
 neurons, each of which encodes for one of the five possible actions (WAIT, UP, DOWN, LEFT, RIGHT).
 
-Like every agent, the survivor also has to provide a confidence for its prediction.
-The goal was to have a high confidence (> 0.33, as there can be up to three different ways to escape an explosion)
+Like every agent, the survivor also has to provide confidence for its prediction.
+The goal was to have high confidence (> 0.33, as there can be up to three different ways to escape an explosion)
 whenever the survivor is too close to an explosion, and a low confidence (< 0.2, as the agent has five different moves
 to choose from) if there is no immediate threat to our agent.
 
@@ -60,6 +62,22 @@ For the actual implementation of this sub-agent, we decided to use the pytorch l
 familiarized with during the lecture.
 
 % TODO: Insert one subsection for every other agent here.
+\subsection{Bombing Design}
+\subsubsection*{Keerthan Ugrani}
+\label{subsec:survivor-design}
+This task of the player is the deciding factor in winning the game. The bombing agent has a global vision of the game state, which means that this agent has information about the positions of the crates and the positions of the enemy players. The bombing agent has been programmed logically to strategically place the bomb in the game environment, this could include the case that the agent finds the dead end and finds out either of the obstacles is a crate. We also make this agent more sophisticated by effectively calculating the effectiveness of the bomb and taking steps to avoid getting caught in the explosion of the self-placed bombs. 
+
+The bombing agent provides confidence according to the score for all the possible moves, which means that the bombing agent returns the moves and the respective confidence of each move just like every other agent. Here it depends on the Q-value of each action taken into consideration and the move with the highest Q-value is returned.
+
+Q-learning is a foundational reinforcement learning algorithm used in machine learning to find the optimal action-selection policy for a given finite Markov decision process. The algorithm iteratively refines estimates of action values, allowing an agent to make informed decisions in an environment. The Q-Learning update equation is a crucial component of this algorithm, determining how the agent updates its knowledge based on experiences.
+
+The Q-Learning update equation is as follows:
+
+\[Q(s, a) \leftarrow (1 - \alpha) \cdot Q(s, a) + \alpha \cdot \left(r + \gamma \cdot \max_{a'} Q(s', a')\right)\]
+
+The update equation combines the current estimate Q(s, a) with new information obtained during an agent's interaction with the environment.
+
+The Q-learning functions collectively form a comprehensive toolkit for training and evaluating an agent in a game environment. By addressing reward assignment, policy generation, experience accumulation, and neural network updates, these functions contribute to the agent's ability to learn effective strategies for gameplay.
 
 \subsection{Second Agent}
 \label{subsec:second-design}
