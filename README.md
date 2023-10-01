@@ -55,6 +55,7 @@ arena?
 
 ### Anu
 - Coin collecting agent.
+- 2nd Agent/Model (experimental purpose only)
 
 ### Keerthan Ugrani
 - Bombing agent
